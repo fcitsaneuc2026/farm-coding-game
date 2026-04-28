@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <title>Harvest IT</title>
+    <title>Harvest IT - 编程体验游戏</title>
     <style>
         body {
             font-family: 'Courier New', monospace;
@@ -149,25 +149,40 @@
         /* 自动补全列表 */
         .autocomplete-list {
             position: absolute;
-            left: 0;
-            right: 0;
-            top: 100%;
+            left: 10px;
+            top: 10px;
+            width: min(360px, calc(100% - 20px));
             margin-top: 4px;
             background: #252526;
             border: 1px solid #3e3e42;
-            border-radius: 5px;
+            border-radius: 6px;
             z-index: 20;
-            max-height: 150px;
+            max-height: 180px;
             overflow-y: auto;
             font-size: 13px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
         }
         .autocomplete-item {
-            padding: 6px 10px;
+            padding: 7px 10px;
             cursor: pointer;
+            border-bottom: 1px solid rgba(255,255,255,0.04);
+        }
+        .autocomplete-item:last-child {
+            border-bottom: none;
         }
         .autocomplete-item:hover,
         .autocomplete-item.selected {
             background: #094771;
+        }
+        .autocomplete-item-main {
+            color: #dcdcaa;
+            font-family: 'Courier New', monospace;
+            font-weight: bold;
+        }
+        .autocomplete-item-desc {
+            color: #858585;
+            font-size: 11px;
+            margin-top: 2px;
         }
         
         /* 页面切换样式 */
@@ -425,10 +440,9 @@
                 </div>
                 
                 <div class="input-area">
-                    <textarea id="codeInput" placeholder="输入代码，支持多行、if/else 和 while 循环&#10;&#10;例如 if/else：&#10;if (money >= 50) {&#10;    plant(&quot;corn&quot;);&#10;} else {&#10;    plant(&quot;wheat&quot;);&#10;}&#10;&#10;例如 while 循环：&#10;while (money < 200) {&#10;    plant(&quot;wheat&quot;);&#10;}&#10;&#10;按 Ctrl+Enter 或点击执行按钮运行代码"></textarea>
+                    <textarea id="codeInput" placeholder="输入代码，支持多行、if/else 和 while 循环&#10;&#10;快捷键：&#10;F5 = 执行代码&#10;Enter = 下一行 / 选择推荐代码&#10;Tab = 缩排 / 选择推荐代码&#10;&#10;例如 if/else：&#10;if (money >= 50) {&#10;    plant(&quot;corn&quot;);&#10;} else {&#10;    plant(&quot;wheat&quot;);&#10;}&#10;&#10;例如 while 循环：&#10;while (money < 200) {&#10;    plant(&quot;wheat&quot;);&#10;}"></textarea>
                     <div id="autocompleteList" class="autocomplete-list" style="display:none;"></div>
                     <div class="button-area">
-                        <button onclick="executeCode()">▶ 执行代码</button>
                         <button onclick="clearConsole()">🗑️ 清空控制台</button>
                         <button onclick="startChallenge()" id="startChallengeBtn" style="background: #4ec9b0;">🏆 开始挑战 (2分钟)</button>
                         <button onclick="stopChallenge()" id="stopChallengeBtn" style="background: #f48771; display: none;">⏹️ 停止挑战</button>
@@ -508,7 +522,7 @@ if (money >= 50) {
                         </div>
                     </div>
                     <div style="margin-top: 10px; font-size: 11px; color: #858585;">
-                        💡 提示：按 Ctrl+Enter 执行代码<br>
+                        💡 提示：按 F5 执行代码；Enter/Tab 可选择推荐代码；Tab 可缩排<br>
                         ⚡ 推荐：使用 async/await 和 wait() 函数，不会卡死浏览器<br>
                         ⚠️ 注意：代码最多执行30秒，防止无限循环<br>
                         ⚠️ 重要：使用 await wait() 时，代码必须在 async 函数中
@@ -645,7 +659,7 @@ if (money >= 50) {
                 recommend: "⚡ 推荐",
                 note: "⚠️ 注意",
                 important: "⚠️ 重要",
-                pressCtrl: "按 Ctrl+Enter 执行代码",
+                pressCtrl: "按 F5 执行代码；Enter/Tab 可选择推荐代码；Tab 可缩排",
                 useAsync: "使用 async/await 和 wait() 函数，不会卡死浏览器",
                 max30s: "代码最多执行30秒，防止无限循环",
                 awaitInAsync: "使用 await wait() 时，代码必须在 async 函数中",
@@ -727,7 +741,7 @@ if (money >= 50) {
                 recommend: "⚡ Recommended",
                 note: "⚠️ Note",
                 important: "⚠️ Important",
-                pressCtrl: "Press Ctrl+Enter to execute code",
+                pressCtrl: "Press F5 to run; Enter/Tab accepts suggestions; Tab indents",
                 useAsync: "Use async/await and wait() function, won't freeze browser",
                 max30s: "Code execution limited to 30 seconds to prevent infinite loops",
                 awaitInAsync: "When using await wait(), code must be in async function",
@@ -921,7 +935,7 @@ while (money < 200) {
                     </div>
                 </div>
                 <div style="margin-top: 10px; font-size: 11px; color: #858585;">
-                    ${currentLang === 'zh' ? '💡 提示：按 Ctrl+Enter 执行代码' : '💡 Tip: Press Ctrl+Enter to execute code'}
+                    ${currentLang === 'zh' ? '💡 提示：按 F5 执行代码；Enter/Tab 可选择推荐代码；Tab 可缩排' : '💡 Tip: Press F5 to run; Enter/Tab accepts suggestions; Tab indents'}
                 </div>
             `;
         }
@@ -969,16 +983,24 @@ while (money < 200) {
         let currentPlayerName = '';
         
         // 自动补全配置
+        // value = 按 Tab 后真正插入代码区的内容
+        // trigger = 用来帮助匹配，例如输入 pl / plant / plant(" 都会显示 plant 相关建议
         const AUTOCOMPLETE_SNIPPETS = [
-            'plant("wheat")',
-            'plant("corn")',
-            'plant("gold")',
-            'harvest()',
-            'sell()',
-            'checkMoney()',
-            'checkState()'
+            { value: 'plant("wheat")', trigger: 'plant', description: '种植小麦 / Plant wheat' },
+            { value: 'plant("corn")', trigger: 'plant', description: '种植玉米 / Plant corn' },
+            { value: 'plant("gold")', trigger: 'plant', description: '种植黄金作物 / Plant gold crop' },
+            { value: 'harvest()', trigger: 'harvest', description: '收成成熟作物 / Harvest ready crop' },
+            { value: 'sell()', trigger: 'sell', description: '卖出已收成作物 / Sell harvested crop' },
+            { value: 'checkMoney()', trigger: 'checkMoney', description: '查看金币 / Check money' },
+            { value: 'checkState()', trigger: 'checkState', description: '查看农场状态 / Check farm state' },
+            { value: 'await wait(1)', trigger: 'wait', description: '等待 1 秒 / Wait 1 second' },
+            { value: 'if (state === "empty") {\n    plant("wheat");\n}', trigger: 'if', description: 'if 判断模板 / If statement template' },
+            { value: 'while (money < 2000) {\n    checkLoopLimit();\n    \n}', trigger: 'while', description: 'while 循环模板 / While loop template' },
+            { value: 'for (let i = 0; i < 5; i++) {\n    \n}', trigger: 'for', description: 'for 循环模板 / For loop template' }
         ];
         let autocompleteIndex = -1;
+        let autocompleteSelectTimer = null;
+        const activeCodeKeys = new Set();
         
         // ============================================
         // 服务器配置
@@ -1791,13 +1813,28 @@ while (money < 200) {
             }
         }
         
-        // 工具函数：获取当前光标前的“单词”（用于自动补全）
-        function getCurrentToken(inputEl) {
+        // 工具函数：获取当前光标前可自动补全的代码片段
+        function getAutocompleteToken(inputEl) {
             const pos = inputEl.selectionStart || 0;
             const value = inputEl.value || '';
             const before = value.slice(0, pos);
-            const match = before.match(/(\S+)$/);
-            return match ? match[1] : '';
+            // 支持 plant、plant(、plant("、plant("wh 这类输入
+            const match = before.match(/([A-Za-z_$][\w$]*(?:\(["']?[\w$]*)?)$/);
+            if (!match) return null;
+            return {
+                text: match[1],
+                start: pos - match[1].length,
+                end: pos
+            };
+        }
+        
+        function getMatchingSnippets(tokenText) {
+            const lower = tokenText.toLowerCase();
+            return AUTOCOMPLETE_SNIPPETS.filter(item => {
+                const value = item.value.toLowerCase();
+                const trigger = item.trigger.toLowerCase();
+                return value.startsWith(lower) || trigger.startsWith(lower);
+            });
         }
         
         function hideAutocomplete() {
@@ -1808,48 +1845,194 @@ while (money < 200) {
             autocompleteIndex = -1;
         }
         
+        // 计算 textarea 光标位置，让推荐框出现在正在打字的那一行下面
+        function getTextareaCaretCoordinates(textarea, position) {
+            const div = document.createElement('div');
+            const style = window.getComputedStyle(textarea);
+            const properties = [
+                'boxSizing', 'width', 'height', 'overflowX', 'overflowY',
+                'borderTopWidth', 'borderRightWidth', 'borderBottomWidth', 'borderLeftWidth',
+                'paddingTop', 'paddingRight', 'paddingBottom', 'paddingLeft',
+                'fontStyle', 'fontVariant', 'fontWeight', 'fontStretch', 'fontSize',
+                'fontSizeAdjust', 'lineHeight', 'fontFamily', 'textAlign', 'textTransform',
+                'textIndent', 'textDecoration', 'letterSpacing', 'wordSpacing', 'tabSize'
+            ];
+            
+            div.style.position = 'absolute';
+            div.style.visibility = 'hidden';
+            div.style.whiteSpace = 'pre-wrap';
+            div.style.wordWrap = 'break-word';
+            div.style.top = '0';
+            div.style.left = '-9999px';
+            properties.forEach(prop => {
+                div.style[prop] = style[prop];
+            });
+            
+            div.textContent = textarea.value.substring(0, position);
+            const span = document.createElement('span');
+            // 用一个不可见字符标记光标位置
+            span.textContent = textarea.value.substring(position, position + 1) || '\u200b';
+            div.appendChild(span);
+            document.body.appendChild(div);
+            
+            const spanRect = span.getBoundingClientRect();
+            const divRect = div.getBoundingClientRect();
+            const lineHeight = parseFloat(style.lineHeight) || parseFloat(style.fontSize) * 1.2 || 18;
+            const coordinates = {
+                left: spanRect.left - divRect.left,
+                top: spanRect.top - divRect.top,
+                lineHeight
+            };
+            
+            document.body.removeChild(div);
+            return coordinates;
+        }
+        
+        function positionAutocomplete() {
+            const input = document.getElementById('codeInput');
+            const list = document.getElementById('autocompleteList');
+            const area = input ? input.closest('.input-area') : null;
+            if (!input || !list || !area) return;
+            
+            const inputRect = input.getBoundingClientRect();
+            const areaRect = area.getBoundingClientRect();
+            const coords = getTextareaCaretCoordinates(input, input.selectionStart || 0);
+            const listWidth = Math.min(360, Math.max(260, input.clientWidth - 20));
+            
+            let left = (inputRect.left - areaRect.left) + coords.left - input.scrollLeft;
+            let top = (inputRect.top - areaRect.top) + coords.top - input.scrollTop + coords.lineHeight + 6;
+            
+            // 避免推荐框超出代码输入区宽度
+            left = Math.max(0, Math.min(left, area.clientWidth - listWidth));
+            top = Math.max(0, top);
+            
+            list.style.width = listWidth + 'px';
+            list.style.left = left + 'px';
+            list.style.top = top + 'px';
+        }
+        
         function updateAutocomplete() {
             const input = document.getElementById('codeInput');
             const list = document.getElementById('autocompleteList');
             if (!input || !list) return;
-            const token = getCurrentToken(input).trim();
-            if (!token) {
+            
+            const token = getAutocompleteToken(input);
+            if (!token || !token.text.trim()) {
                 hideAutocomplete();
                 return;
             }
-            const lower = token.toLowerCase();
-            const matches = AUTOCOMPLETE_SNIPPETS.filter(s => s.toLowerCase().startsWith(lower));
+            
+            const matches = getMatchingSnippets(token.text.trim());
             if (!matches.length) {
                 hideAutocomplete();
                 return;
             }
+            
             autocompleteIndex = 0;
-            list.innerHTML = matches
-                .map((s, i) => `<div class="autocomplete-item ${i === 0 ? 'selected' : ''}" data-value="${s}">${s}</div>`)
-                .join('');
+            list.innerHTML = '';
+            matches.forEach((item, i) => {
+                const option = document.createElement('div');
+                option.className = 'autocomplete-item' + (i === 0 ? ' selected' : '');
+                option.dataset.value = item.value;
+                
+                const main = document.createElement('div');
+                main.className = 'autocomplete-item-main';
+                main.textContent = item.value;
+                
+                const desc = document.createElement('div');
+                desc.className = 'autocomplete-item-desc';
+                desc.textContent = item.description;
+                
+                option.appendChild(main);
+                option.appendChild(desc);
+                list.appendChild(option);
+            });
+            
             list.style.display = 'block';
+            positionAutocomplete();
         }
         
         function applyAutocomplete() {
             const input = document.getElementById('codeInput');
             const list = document.getElementById('autocompleteList');
             if (!input || !list || list.style.display === 'none') return;
+            
             let selected = list.querySelector('.autocomplete-item.selected');
             if (!selected) selected = list.querySelector('.autocomplete-item');
             if (!selected) return;
-            const snippet = selected.getAttribute('data-value');
-            const pos = input.selectionStart || 0;
-            const value = input.value || '';
-            const before = value.slice(0, pos);
-            const after = value.slice(pos);
-            const match = before.match(/(\S+)$/);
-            let tokenStart = pos;
-            if (match) tokenStart = pos - match[1].length;
-            const newBefore = before.slice(0, tokenStart) + snippet;
-            input.value = newBefore + after;
-            const newPos = newBefore.length;
-            input.selectionStart = input.selectionEnd = newPos;
+            
+            const snippet = selected.dataset.value || selected.textContent;
+            const token = getAutocompleteToken(input);
+            if (!token) return;
+            
+            input.setRangeText(snippet, token.start, token.end, 'end');
             hideAutocomplete();
+            input.focus();
+        }
+        
+        function moveAutocompleteSelection(direction) {
+            const list = document.getElementById('autocompleteList');
+            if (!list || list.style.display === 'none') return;
+            const items = Array.from(list.querySelectorAll('.autocomplete-item'));
+            if (!items.length) return;
+            
+            autocompleteIndex = (autocompleteIndex + direction + items.length) % items.length;
+            items.forEach((item, idx) => {
+                item.classList.toggle('selected', idx === autocompleteIndex);
+            });
+            items[autocompleteIndex].scrollIntoView({ block: 'nearest' });
+        }
+        
+        function indentCode(input) {
+            const indent = '    '; // 4 spaces
+            const start = input.selectionStart;
+            const end = input.selectionEnd;
+            const value = input.value;
+            
+            if (start !== end && value.slice(start, end).includes('\n')) {
+                const lineStart = value.lastIndexOf('\n', start - 1) + 1;
+                const selectedText = value.slice(lineStart, end);
+                const indentedText = selectedText.replace(/^/gm, indent);
+                input.value = value.slice(0, lineStart) + indentedText + value.slice(end);
+                input.selectionStart = start + indent.length;
+                input.selectionEnd = end + (indentedText.length - selectedText.length);
+            } else {
+                input.setRangeText(indent, start, end, 'end');
+            }
+        }
+        
+        function outdentCode(input) {
+            const start = input.selectionStart;
+            const end = input.selectionEnd;
+            const value = input.value;
+            const lineStart = value.lastIndexOf('\n', start - 1) + 1;
+            const selectedText = value.slice(lineStart, end);
+            const startOffset = start - lineStart;
+            let removedBeforeStart = 0;
+            let removedTotal = 0;
+            
+            const outdentedText = selectedText.replace(/^(?: {1,4}|\t)/gm, function(match, offset) {
+                removedTotal += match.length;
+                if (offset < startOffset) {
+                    removedBeforeStart += match.length;
+                }
+                return '';
+            });
+            
+            input.value = value.slice(0, lineStart) + outdentedText + value.slice(end);
+            input.selectionStart = Math.max(lineStart, start - removedBeforeStart);
+            input.selectionEnd = Math.max(input.selectionStart, end - removedTotal);
+        }
+        
+        function selectAutocompleteWithGuard() {
+            clearTimeout(autocompleteSelectTimer);
+            autocompleteSelectTimer = setTimeout(() => {
+                // 如果 Tab 和 Enter 同时被按着，不执行选择，避免组合键误触。
+                if (activeCodeKeys.has('Tab') && activeCodeKeys.has('Enter')) {
+                    return;
+                }
+                applyAutocomplete();
+            }, 25);
         }
         
         // 清空控制台
@@ -1859,65 +2042,89 @@ while (money < 200) {
             addToConsole(t('consoleCleared'), 'output');
         }
         
-        // 支持 Ctrl+Enter 和自动补全
+        // 支持 F5 执行、Enter/Tab 选择推荐、Tab 缩排、自动补全
         document.addEventListener('DOMContentLoaded', function() {
             let codeInput = document.getElementById('codeInput');
+            if (!codeInput) return;
+            
             codeInput.addEventListener('keydown', function(e) {
-                // Ctrl+Enter 或 Cmd+Enter 执行代码
-                if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+                activeCodeKeys.add(e.key);
+                const list = document.getElementById('autocompleteList');
+                const listVisible = list && list.style.display !== 'none';
+                
+                // 只有 F5 快捷键会执行代码；不再使用 Ctrl+Enter 执行。
+                if (e.key === 'F5') {
                     e.preventDefault();
+                    hideAutocomplete();
                     executeCode();
                     return;
                 }
                 
-                const list = document.getElementById('autocompleteList');
-                const listVisible = list && list.style.display !== 'none';
-                
-                // 自动补全键盘导航
+                // 自动补全键盘导航：上 / 下选择推荐。
                 if (listVisible && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) {
                     e.preventDefault();
-                    const items = Array.from(list.querySelectorAll('.autocomplete-item'));
-                    if (!items.length) return;
-                    if (e.key === 'ArrowDown') {
-                        autocompleteIndex = (autocompleteIndex + 1) % items.length;
-                    } else {
-                        autocompleteIndex = (autocompleteIndex - 1 + items.length) % items.length;
-                    }
-                    items.forEach((item, idx) => {
-                        item.classList.toggle('selected', idx === autocompleteIndex);
-                    });
+                    moveAutocompleteSelection(e.key === 'ArrowDown' ? 1 : -1);
                     return;
                 }
                 
-                // 选中自动补全（Enter 或 Tab）
+                // 有推荐时：Enter 或 Tab 都可以确认选择；Tab+Enter 同时按不会确认。
                 if (listVisible && (e.key === 'Enter' || e.key === 'Tab')) {
                     e.preventDefault();
-                    applyAutocomplete();
+                    selectAutocompleteWithGuard();
                     return;
                 }
                 
-                // Esc 关闭自动补全
+                // 没有推荐时：Tab 插入 4 个空格。Shift+Tab 不再做反缩排。
+                if (e.key === 'Tab') {
+                    e.preventDefault();
+                    if (!e.shiftKey) {
+                        indentCode(codeInput);
+                    }
+                    return;
+                }
+                
+                // 没有推荐时：Enter 保持 textarea 默认行为，即换到下一行。
+                
+                // Esc 关闭自动补全。
                 if (e.key === 'Escape') {
                     hideAutocomplete();
                 }
             });
             
-            // 输入变化时更新自动补全
             codeInput.addEventListener('keyup', function(e) {
-                if (e.ctrlKey || e.metaKey) return;
-                const ignoreKeys = ['ArrowUp','ArrowDown','Enter','Tab','Escape'];
-                if (ignoreKeys.includes(e.key)) return;
+                activeCodeKeys.delete(e.key);
+            });
+            
+            window.addEventListener('keyup', function(e) {
+                activeCodeKeys.delete(e.key);
+            });
+            
+            window.addEventListener('blur', function() {
+                activeCodeKeys.clear();
+            });
+            
+            // 输入变化时更新自动补全
+            codeInput.addEventListener('input', function() {
                 updateAutocomplete();
             });
+            
+            // 光标移动或滚动时，推荐框跟着光标位置更新
+            codeInput.addEventListener('click', updateAutocomplete);
+            codeInput.addEventListener('scroll', positionAutocomplete);
+            window.addEventListener('resize', positionAutocomplete);
             
             // 自动补全列表点击选择
             const list = document.getElementById('autocompleteList');
             if (list) {
                 list.addEventListener('mousedown', function(e) {
-                    if (e.target.classList.contains('autocomplete-item')) {
+                    const item = e.target.closest('.autocomplete-item');
+                    if (item) {
                         e.preventDefault(); // 避免 textarea 失焦
                         const items = Array.from(list.querySelectorAll('.autocomplete-item'));
-                        autocompleteIndex = items.indexOf(e.target);
+                        autocompleteIndex = items.indexOf(item);
+                        items.forEach((option, idx) => {
+                            option.classList.toggle('selected', idx === autocompleteIndex);
+                        });
                         applyAutocomplete();
                         codeInput.focus();
                     }
